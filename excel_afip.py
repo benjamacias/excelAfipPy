@@ -107,11 +107,14 @@ def procesar_archivo(nombre_archivo, clientes_excel):
         nombre_final = f"{tipo_libro}{cliente_nombre or nombre_archivo} {fecha.replace('/', '-')}.xlsx"
         ruta_final = os.path.join(DIR_SALIDA, nombre_final)
 
+
         wb.save(ruta_final)
         logging.info(f"Guardado: {ruta_final}")
+        return ruta_final
 
     except Exception as e:
         logging.error(f"Error procesando {nombre_archivo}: {e}")
+        return None
 
 
 def procesar_archivos(parallel: bool = False):
