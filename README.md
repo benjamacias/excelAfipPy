@@ -19,3 +19,10 @@ Libro venta CLIENTE MES-AÑO.xlsx
 Cálculo del coeficiente de IVA
 Al final de cada archivo, calcula el coeficiente de IVA del último comprobante válido y lo deja registrado como referencia adicional.
 
+## Microservicio
+
+El microservicio expone dos endpoints principales:
+
+- `POST /process` procesa todos los archivos en la carpeta `recibidos/`.
+- `POST /process-files` permite subir varios archivos XLSX y devuelve un ZIP con los archivos procesados usando `procesar_archivo`.
+
