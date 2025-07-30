@@ -13,7 +13,17 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 # Ruta de archivos recibidos y terminados
 DIR_ENTRADA = "recibidos"
 DIR_SALIDA = "terminado"
-ARCHIVO_CLIENTES = "clientes.xls"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ARCHIVO_CLIENTES = os.path.join(BASE_DIR, "clientes.xlsx")
+file_path = os.path.join(BASE_DIR, "clientes.xlsx")
+ext = os.path.splitext(file_path)[-1].lower()
+
+if ext == ".xls":
+    engine = "xlrd"
+else:
+    engine = "openpyxl"
+
+
 
 # Diccionarios de mapeo de tipos y columnas
 TIPOS_CELDAS = {
@@ -123,7 +133,16 @@ def procesar_archivos(parallel: bool = False):
         logging.info("No se encontraron archivos para procesar")
         return
 
-    clientes_excel = pd.read_excel(ARCHIVO_CLIENTES, sheet_name="VERO2023")
+    # Detectar automáticamente el motor según extensión
+    extension = os.path.splitext(ARCHIVO_CLIENTES)[-1].lower()
+    if extension == ".xls":
+        engine = "xlrd"
+    else:
+        engine = "openpyxl"
+
+    clientes_excel = pd.read_excel(ARCHIVO_CLIENTES, sheet_name="Sheet1", engine="openpyxl")
+
+
 
     if parallel:
         with ThreadPoolExecutor() as executor:

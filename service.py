@@ -6,6 +6,14 @@ from werkzeug.utils import secure_filename
 import pandas as pd
 import excel_afip
 
+file_path = excel_afip.ARCHIVO_CLIENTES
+extension = os.path.splitext(file_path)[-1].lower()
+
+if extension == ".xls":
+    engine = "xlrd"
+else:
+    engine = "openpyxl"
+
 app = Flask(__name__)
 
 @app.route('/health', methods=['GET'])
@@ -32,7 +40,7 @@ def process_files():
     os.makedirs(excel_afip.DIR_ENTRADA, exist_ok=True)
     os.makedirs(excel_afip.DIR_SALIDA, exist_ok=True)
 
-    clientes_excel = pd.read_excel(excel_afip.ARCHIVO_CLIENTES, sheet_name="VERO2023")
+    clientes_excel = pd.read_excel(file_path, sheet_name="Sheet1", engine="openpyxl")
     processed_paths = []
 
     for f in files:
