@@ -3,8 +3,9 @@ import re
 import logging
 import pandas as pd
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 from openpyxl import load_workbook
-from os import scandir, getcwd
+from os import scandir
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -69,51 +70,65 @@ def obtener_cliente_nombre(cuil_archivo, df_clientes):
         return None
 
 
-def procesar_archivos():
+def procesar_archivo(nombre_archivo, clientes_excel):
+    """Procesa un solo archivo y lo guarda en la carpeta de salida."""
+    ruta = os.path.join(DIR_ENTRADA, nombre_archivo)
+    logging.info(f"Procesando archivo: {ruta}")
+
+    try:
+        # Cargar archivo de comprobantes
+        df = cargar_archivo(ruta)
+        df.fillna(0, inplace=True)
+        df["Tipo"] = df["Tipo"].astype(str)
+
+        # Cargar workbook de Excel
+        wb = load_workbook(ruta)
+        ws = wb.active
+
+        # Fecha para el nombre final
+        fecha = obtener_fecha_desde_excel(ws)
+
+        # Escribir encabezados en hoja
+        encabezados_columnas(ws)
+
+        # Calcular y escribir totales por tipo y columna
+        for tipo, col in TIPOS_CELDAS.items():
+            for campo, fila in COLUMNAS_RESUMEN.items():
+                total = sumar_por_tipo(df, tipo, campo)
+                ws[f"{col}{fila}"] = f"{total:.2f}"
+
+        # Intentar calcular valor IVA (última fila)
+        ws['Z17'] = "Coef. IVA último comprobante"
+        ws['Z18'] = calcular_coef_iva_final(df)
+
+        # Guardar archivo con nuevo nombre
+        cliente_nombre = obtener_cliente_nombre(nombre_archivo, clientes_excel)
+        tipo_libro = "Libro venta " if 'Mis Comprobantes Emitidos' in nombre_archivo else "Libro compra "
+        nombre_final = f"{tipo_libro}{cliente_nombre or nombre_archivo} {fecha.replace('/', '-')}.xlsx"
+        ruta_final = os.path.join(DIR_SALIDA, nombre_final)
+
+        wb.save(ruta_final)
+        logging.info(f"Guardado: {ruta_final}")
+
+    except Exception as e:
+        logging.error(f"Error procesando {nombre_archivo}: {e}")
+
+
+def procesar_archivos(parallel: bool = False):
     archivos = listar_archivos()
+    if not archivos:
+        logging.info("No se encontraron archivos para procesar")
+        return
+
     clientes_excel = pd.read_excel(ARCHIVO_CLIENTES, sheet_name="VERO2023")
-    
-    for nombre_archivo in archivos:
-        ruta = os.path.join(DIR_ENTRADA, nombre_archivo)
-        logging.info(f"Procesando archivo: {ruta}")
 
-        try:
-            # Cargar archivo de comprobantes
-            df = cargar_archivo(ruta)
-            df.fillna(0, inplace=True)
-            df["Tipo"] = df["Tipo"].astype(str)
-
-            # Cargar workbook de Excel
-            wb = load_workbook(ruta)
-            ws = wb.active
-
-            # Fecha para el nombre final
-            fecha = obtener_fecha_desde_excel(ws)
-
-            # Escribir encabezados en hoja
-            encabezados_columnas(ws)
-
-            # Calcular y escribir totales por tipo y columna
-            for tipo, col in TIPOS_CELDAS.items():
-                for campo, fila in COLUMNAS_RESUMEN.items():
-                    total = sumar_por_tipo(df, tipo, campo)
-                    ws[f"{col}{fila}"] = f"{total:.2f}"
-
-            # Intentar calcular valor IVA (última fila)
-            ws['Z17'] = "Coef. IVA último comprobante"
-            ws['Z18'] = calcular_coef_iva_final(df)
-
-            # Guardar archivo con nuevo nombre
-            cliente_nombre = obtener_cliente_nombre(nombre_archivo, clientes_excel)
-            tipo_libro = "Libro venta " if 'Mis Comprobantes Emitidos' in nombre_archivo else "Libro compra "
-            nombre_final = f"{tipo_libro}{cliente_nombre or nombre_archivo} {fecha.replace('/', '-')}.xlsx"
-            ruta_final = os.path.join(DIR_SALIDA, nombre_final)
-
-            wb.save(ruta_final)
-            logging.info(f"Guardado: {ruta_final}")
-        
-        except Exception as e:
-            logging.error(f"Error procesando {nombre_archivo}: {e}")
+    if parallel:
+        with ThreadPoolExecutor() as executor:
+            for nombre in archivos:
+                executor.submit(procesar_archivo, nombre, clientes_excel)
+    else:
+        for nombre in archivos:
+            procesar_archivo(nombre, clientes_excel)
 
 def encabezados_columnas(ws):
     """Escribe los encabezados en las celdas fijas del Excel."""
@@ -143,5 +158,5 @@ def calcular_coef_iva_final(df):
 
 
 if __name__ == "__main__":
-    procesar_archivos()
+    procesar_archivos(parallel=True)
  
