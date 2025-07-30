@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  excelafip:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./recibidos:/app/recibidos
+      - ./terminado:/app/terminado
+    environment:
+      - PORT=8000
